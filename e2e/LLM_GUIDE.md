@@ -78,6 +78,8 @@ Legacy: `PadStormwindOutskirts` (= AbandonHouse) — prefer `PackagePad`
 
 **Trade (multi-bot):** `OpenTrade(t, initiator, target)` · `InitiateTrade` · `AcceptTradeWindow` · **`WaitTradeOpen`** · `SetTradeItem(slot,bag,invSlot)` · `SetTradeGold` · `AcceptTrade` · `CancelTrade` · `CompleteTrade` · `WaitTradeComplete` · `WaitTradeCancelled` · `WaitTradeStatus` · `TradeOpen` (cache). `OpenTrade`/`CompleteTrade` arm packet waiters — do not add fixed sleeps around them.
 
+**Arena / battleground queue (multi-bot):** `EnableArenaSeason(t, bot)` (season + battlemaster event, restored on cleanup) · `CreateArenaTeam(t, leader, member, UniqueArenaTeamName("Pfx"), client.ArenaTeam2v2)` (two members, both at max level, disbanded on cleanup, which also dequeues them) · `ArenaTeamRating` · `TeleportToArenaBattlemaster(t, bots…)` · `JoinRatedArena(t, battlemasterGUID, client.ArenaSlot2v2)` · **`WaitBattlefieldStatus(t, client.BattlegroundStatusWaitQueue|WaitJoin, timeout)`** / `TryWaitBattlefieldStatus` (scan every status received so far, so a status that landed before the call still matches) · `DrainBattlefieldStatuses` before re-queueing · `LeaveBattlefieldQueue` on cleanup for every member (an invited group holds its bracket until its last member leaves). A refused join is named in the wait failure (`SMSG_GROUP_JOINED_BATTLEGROUND` / `SMSG_ARENA_ERROR`); a join the server drops silently (battlemaster not in the bot's map, rated without a party, sender not the party leader, season not in progress, already in a BG) is not.
+
 **Loot / rolls:** after kill → **`WaitUnitLootable`** then `OpenLoot` · `LootRelease` · `LootTakeItem` · `WaitLootStartRoll` · `RollNeed`/`RollGreed`/`RollPass` · `WaitLootRollWon` · `WaitLootAllPassed` · `MasterLootGive`
 
 **Pets:** `WaitPlayerPet` · `PlayerPetGUID` · `DismissPet` · `WaitNoPlayerPet` · `AssertNoPlayerPet` · `PetAttack`
@@ -92,7 +94,7 @@ Legacy: `PadStormwindOutskirts` (= AbandonHouse) — prefer `PackagePad`
 
 **Assert severity:** `Preconditionf` · `ConfirmedBugf(t, issue, …)` · `HarnessFailf` · `SoftWarnf` · **`Assertf`/`AssertBugf`** (post-drive product oracle). **`SoftPass` is disabled by default** (fails); only `E2E_ALLOW_SOFT_PASS=1` allows it — prefer Preconditionf. Grep failures: `E2E_FAIL` or `--- FAIL` (routine `SMSG_CAST_FAILED` is Debug-only under default `E2E_WORLD_LOG=info`).
 
-**Hooks (race-safe multi-subscriber):** prefer `AddPacketHook` / `AddTradeStatusHook` / `AddLoot*Hook` / `AddGroup*Hook` / `AddSpellCastResultHook` with cancel; avoid assigning `On*` fields.
+**Hooks (race-safe multi-subscriber):** prefer `AddPacketHook` / `AddTradeStatusHook` / `AddLoot*Hook` / `AddGroup*Hook` / `AddSpellCastResultHook` / `AddBattlefieldStatusHook` with cancel; avoid assigning `On*` fields.
 
 **R1 helpers:** `DieMust` · `TryOpenLoot` · `SpawnKillLootable` · `ArmLootStartRoll` · `ArmLootRollOutcome` (Arm → Roll* → Wait) · `ArmGroupInvite` (Arm → Invite → Wait) · `WaitNear` · `DamageToFraction` · `HardDisconnectAndProbe` · `WaitLootMethod` · `TryWaitChanneling` · `CancelCastWhenChanneling` · `meta.Begin` (AC: no Parallel if serial)
 
@@ -118,6 +120,7 @@ Pattern: **Arm → Send → Wait** on a real signal (packet / object cache / pha
 | HardDisconnect | different bot: `ProbeWorldAlive` / `AssertWorldAlive` |
 | Group invite/accept / SetLeader | `WaitGroupList` / `WaitIsGroupLeader` / `WaitNotInGroup` |
 | Trade initiate/accept | `OpenTrade` / `WaitTradeOpen` / `WaitTradeStatus` / `CompleteTrade` |
+| Arena queue join / pop | `WaitBattlefieldStatus(WaitQueue)` → `WaitBattlefieldStatus(WaitJoin)` |
 | Kill → loot | `WaitUnitDead` → **`WaitUnitLootable`** → `OpenLoot` |
 | Cast / aura / death | `Cast`/`WaitSpell*` · `WaitAura` · `WaitDead` / `WaitAlive` |
 | Nearby NPC after tele | `WaitUnit` / `WaitUnitGUID` (object cache) |
@@ -226,4 +229,5 @@ After Relog / far tele: `bot.WaitInWorld(t, 0)` if you left the helper path; `Re
 `SpellRainOfFire`, `SpellRaiseDead`, `SpellMountSwiftGryphon`, `QuestRethbanGauntlet`,
 `CreatureKologarn`, `CreatureGroundingTotem`, `CreatureTargetDummy`,
 `LootMethodFreeForAll`/`GroupLoot`/`MasterLoot`/`NeedBeforeGreed` (client package),
-`RaceHuman`/`RaceOrc`/`RaceTauren`, `ClassWarrior`/`ClassRogue`/`ClassShaman`/`ClassWarlock`/`ClassDeathKnight`.
+`RaceHuman`/`RaceOrc`/`RaceTauren`, `ClassWarrior`/`ClassRogue`/`ClassShaman`/`ClassWarlock`/`ClassDeathKnight`,
+`ArenaBattlemasterEntry` (26007), `ArenaTournamentEvent` (31), `DefaultBattlefieldTimeout`; client package `ArenaTeam2v2`/`3v3`/`5v5` (`ArenaTeamType`, team size), `ArenaSlot2v2`/`3v3`/`5v5` (`ArenaSlot`, join slot). Separate types, so the compiler catches a swap., `BattlegroundStatusWaitQueue`/`WaitJoin`/`InProgress`, `ErrArenaTeamPartySize` and the other join results.

@@ -1033,19 +1033,20 @@ type WorldClient struct {
 	OnSpellCastResult func(spellID uint32, success bool, failReason uint8)
 
 	// Multi-subscriber hooks (see hooks.go). Protected by cbMu.
-	cbMu                 sync.RWMutex
-	hookSeq              uint64
-	packetHooks          []packetHook
-	tradeStatusHooks     []tradeStatusHook
-	lootOpenedHooks      []lootOpenedHook
-	lootStartRollHooks   []lootStartRollHook
-	lootRollHooks        []lootRollHook
-	lootRollWonHooks     []lootRollWonHook
-	lootAllPassedHooks   []lootAllPassedHook
-	spellCastResultHooks []spellCastResultHook
-	groupInviteHooks     []groupInviteHook
-	groupDeclineHooks    []groupDeclineHook
-	groupListHooks       []groupListHook
+	cbMu                   sync.RWMutex
+	hookSeq                uint64
+	packetHooks            []packetHook
+	tradeStatusHooks       []tradeStatusHook
+	battlefieldStatusHooks []battlefieldStatusHook
+	lootOpenedHooks        []lootOpenedHook
+	lootStartRollHooks     []lootStartRollHook
+	lootRollHooks          []lootRollHook
+	lootRollWonHooks       []lootRollWonHook
+	lootAllPassedHooks     []lootAllPassedHook
+	spellCastResultHooks   []spellCastResultHook
+	groupInviteHooks       []groupInviteHook
+	groupDeclineHooks      []groupDeclineHook
+	groupListHooks         []groupListHook
 	// OnServerRelocate fires when the server forcibly moves the player (charge,
 	// blink, knockback, monster-move spline on self). Bot must abort local paths
 	// or updateMovement will write pre-relocate coords back over the new pose.
@@ -1074,6 +1075,13 @@ type WorldClient struct {
 	lastTradeStatus TradeStatusInfo
 	// OnTradeStatus fires for every SMSG_TRADE_STATUS.
 	OnTradeStatus func(info TradeStatusInfo)
+
+	// Battleground / arena queue state.
+	bfMu                       sync.RWMutex
+	battlefieldStatuses        []BattlefieldStatus // SMSG_BATTLEFIELD_STATUS since login or the last drain
+	lastBattlegroundJoinResult BattlegroundJoinResult
+	battlegroundJoinResultSeen bool
+	lastArenaErrorTeamType     ArenaTeamType
 
 	// Group loot rolls (SMSG_LOOT_START_ROLL / WON / ALL_PASSED).
 	lootRollMu  sync.RWMutex
@@ -1641,6 +1649,14 @@ func (w *WorldClient) handlePacket(opcode uint16, data []byte) {
 	// Trade
 	case SmsgTradeStatus:
 		w.handleTradeStatus(data)
+
+	// Battleground / arena queue
+	case SmsgBattlefieldStatus:
+		w.handleBattlefieldStatus(data)
+	case SmsgGroupJoinedBattleground:
+		w.handleGroupJoinedBattleground(data)
+	case SmsgArenaError:
+		w.handleArenaError(data)
 
 	// Chat
 	case SmsgMessageChat:
