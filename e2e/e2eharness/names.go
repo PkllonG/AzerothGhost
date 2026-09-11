@@ -3,6 +3,7 @@ package e2eharness
 import (
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode"
 )
@@ -57,6 +58,19 @@ func UniqueLetterNames(preferred string, n int) []string {
 	// Static fallbacks last.
 	out = append(out, "Petown", "Petsig", "Gblead", "Gbsign", "Gbalt", "Gbaltb", "Gbaltc", "Gbaltd")
 	return out
+}
+
+// arenaTeamNameSeq is seeded once per process so names do not collide with a previous
+// run that left teams behind, then counts up so they do not collide with each other.
+// The clock alone is not enough: its resolution is coarser than the calls.
+var arenaTeamNameSeq atomic.Uint64
+
+func init() { arenaTeamNameSeq.Store(uint64(time.Now().UnixNano())) }
+
+// UniqueArenaTeamName returns prefix followed by six letters, unique per call. Charter
+// names are capped at MAX_CHARTER_NAME (24), so keep the prefix short.
+func UniqueArenaTeamName(prefix string) string {
+	return prefix + Base26(arenaTeamNameSeq.Add(1), 6)
 }
 
 // Base26 encodes v as lowercase letters (width digits).

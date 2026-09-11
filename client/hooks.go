@@ -13,6 +13,10 @@ type tradeStatusHook struct {
 	id HookID
 	fn func(TradeStatusInfo)
 }
+type battlefieldStatusHook struct {
+	id HookID
+	fn func(BattlefieldStatus)
+}
 type lootOpenedHook struct {
 	id HookID
 	fn func(lootGUID uint64, items []LootItem)
@@ -144,6 +148,41 @@ func (w *WorldClient) SetOnTradeStatus(fn func(TradeStatusInfo)) {
 	w.cbMu.Lock()
 	w.OnTradeStatus = fn
 	w.cbMu.Unlock()
+}
+
+// --- Battlefield status ---
+
+func (w *WorldClient) AddBattlefieldStatusHook(fn func(BattlefieldStatus)) (cancel func()) {
+	if fn == nil {
+		return func() {}
+	}
+	w.cbMu.Lock()
+	id := w.nextHookID()
+	w.battlefieldStatusHooks = append(w.battlefieldStatusHooks, battlefieldStatusHook{id: id, fn: fn})
+	w.cbMu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			w.cbMu.Lock()
+			out := w.battlefieldStatusHooks[:0]
+			for _, h := range w.battlefieldStatusHooks {
+				if h.id != id {
+					out = append(out, h)
+				}
+			}
+			w.battlefieldStatusHooks = out
+			w.cbMu.Unlock()
+		})
+	}
+}
+
+func (w *WorldClient) invokeBattlefieldStatusHooks(st BattlefieldStatus) {
+	w.cbMu.RLock()
+	hooks := append([]battlefieldStatusHook(nil), w.battlefieldStatusHooks...)
+	w.cbMu.RUnlock()
+	for _, h := range hooks {
+		h.fn(st)
+	}
 }
 
 // --- Loot opened ---

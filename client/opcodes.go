@@ -65,6 +65,11 @@ func IsHighValueTraceOpcode(op uint16) bool {
 	case CmsgInitiateTrade, CmsgBeginTrade, CmsgAcceptTrade, CmsgCancelTrade,
 		CmsgSetTradeItem, CmsgSetTradeGold, SmsgTradeStatus:
 		return true
+	// Battleground / arena queue
+	case CmsgBattlemasterJoin, CmsgBattlemasterJoinArena, CmsgBattlefieldPort, CmsgLeaveBattlefield,
+		SmsgBattlefieldStatus, SmsgGroupJoinedBattleground, SmsgArenaError,
+		CmsgArenaTeamInvite, CmsgArenaTeamAccept:
+		return true
 	// Inventory push (charter buy, .additem, bank withdraw)
 	case SmsgItemPushResult:
 		return true
@@ -173,6 +178,15 @@ var opcodeNames = map[uint16]string{
 	CmsgSetTradeItem:                    "CMSG_SET_TRADE_ITEM",
 	CmsgSetTradeGold:                    "CMSG_SET_TRADE_GOLD",
 	SmsgTradeStatus:                     "SMSG_TRADE_STATUS",
+	SmsgBattlefieldStatus:               "SMSG_BATTLEFIELD_STATUS",
+	CmsgBattlefieldPort:                 "CMSG_BATTLEFIELD_PORT",
+	CmsgLeaveBattlefield:                "CMSG_LEAVE_BATTLEFIELD",
+	SmsgGroupJoinedBattleground:         "SMSG_GROUP_JOINED_BATTLEGROUND",
+	CmsgBattlemasterJoin:                "CMSG_BATTLEMASTER_JOIN",
+	CmsgArenaTeamInvite:                 "CMSG_ARENA_TEAM_INVITE",
+	CmsgArenaTeamAccept:                 "CMSG_ARENA_TEAM_ACCEPT",
+	CmsgBattlemasterJoinArena:           "CMSG_BATTLEMASTER_JOIN_ARENA",
+	SmsgArenaError:                      "SMSG_ARENA_ERROR",
 	CmsgSetSelection:                    "CMSG_SET_SELECTION",
 	SmsgNewWorld:                        "SMSG_NEW_WORLD",
 	SmsgTransferPending:                 "SMSG_TRANSFER_PENDING",

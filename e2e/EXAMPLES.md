@@ -440,6 +440,52 @@ func TestGM_VisibilitySurvivesRelog(t *testing.T) {
 }
 ```
 
+### f) Rated arena queue pops for both teams
+
+```go
+func TestArena_RatedQueuePopsForBothTeams(t *testing.T) {
+	bots := e2eharness.NewScenario(t, e2eharness.ScenarioOpts{
+		Prefix: "ArQ",
+		Bots: []e2eharness.BotSpec{
+			{Role: "a1", Level: 80}, {Role: "a2", Level: 80},
+			{Role: "b1", Level: 80}, {Role: "b2", Level: 80},
+		},
+	})
+	a1, a2 := e2eharness.ByRole(t, bots, "a1"), e2eharness.ByRole(t, bots, "a2")
+	b1, b2 := e2eharness.ByRole(t, bots, "b1"), e2eharness.ByRole(t, bots, "b2")
+
+	e2eharness.EnableArenaSeason(t, a1)
+	t.Cleanup(func() {
+		for _, b := range bots {
+			b.LeaveBattlefieldQueue(t) // an invited group holds its bracket until its last member leaves
+		}
+	})
+	e2eharness.CreateArenaTeam(t, a1, a2, e2eharness.UniqueArenaTeamName("ArQA"), client.ArenaTeam2v2)
+	e2eharness.CreateArenaTeam(t, b1, b2, e2eharness.UniqueArenaTeamName("ArQB"), client.ArenaTeam2v2)
+	e2eharness.FormParty(t, a1, a2)
+	e2eharness.FormParty(t, b1, b2)
+	battlemaster := e2eharness.TeleportToArenaBattlemaster(t, bots...)
+
+	a1.JoinRatedArena(t, battlemaster, client.ArenaSlot2v2)
+	b1.JoinRatedArena(t, battlemaster, client.ArenaSlot2v2)
+	for _, leader := range []*e2eharness.ScenarioBot{a1, b1} {
+		if _, ok := leader.TryWaitBattlefieldStatus(client.BattlegroundStatusWaitQueue, 0); !ok {
+			e2eharness.Preconditionf(t, "%s never entered the queue", leader.Name)
+		}
+	}
+
+	// Oracle: the matchmaker pairs the two teams and invites both to the same arena.
+	gotA, okA := a1.TryWaitBattlefieldStatus(client.BattlegroundStatusWaitJoin, 30*time.Second)
+	gotB, okB := b1.TryWaitBattlefieldStatus(client.BattlegroundStatusWaitJoin, 30*time.Second)
+	if !okA || !okB {
+		e2eharness.Assertf(t, "rated arena never popped for both teams: a1=%v b1=%v", okA, okB)
+	}
+	if gotA.MapID != gotB.MapID {
+		e2eharness.Assertf(t, "teams were invited to different arenas: %d vs %d", gotA.MapID, gotB.MapID)
+	}
+}
+```
+
 ---
 
 ## Guild / Session path (optional)
